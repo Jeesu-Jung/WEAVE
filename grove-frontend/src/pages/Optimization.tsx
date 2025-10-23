@@ -3,7 +3,7 @@ import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
 import { ProgressIndicator } from '../components/Layout/ProgressIndicator';
 import { useAppStore } from '../store/useAppStore';
-import { fetchWithRetry } from '../utils/fetchWithRetry';
+import { fetchJsonWithRetry } from '../utils/fetchWithRetry';
 
 interface BestModelItem {
   model: string;
@@ -64,9 +64,7 @@ export const Optimization: React.FC = () => {
     const fetchCombos = async () => {
       try {
         setLoadingCombos(true);
-        const res = await fetchWithRetry('/v1/task-mixture/best-models');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json: ApiResponse<BestModelItem[]> = await res.json();
+        const json = await fetchJsonWithRetry<ApiResponse<BestModelItem[]>>('/v1/task-mixture/best-models');
         setCombos(json.data || []);
       } catch (e: any) {
         console.error(e);
@@ -125,9 +123,7 @@ export const Optimization: React.FC = () => {
         task: selectedTask,
       });
       const url = `/v1/task-mixture/alpaca/search?${params.toString()}`;
-      const res = await fetchWithRetry(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json: ApiResponse<{ items: SearchItem[]; bestModelDataSizeInfo?: BestModelDataSizeInfo }> = await res.json();
+      const json = await fetchJsonWithRetry<ApiResponse<{ items: SearchItem[]; bestModelDataSizeInfo?: BestModelDataSizeInfo }>>(url);
       const items = (json.data && (json.data as any).items) || [];
       setResults(items);
       setBestInfo((json.data as any)?.bestModelDataSizeInfo || null);

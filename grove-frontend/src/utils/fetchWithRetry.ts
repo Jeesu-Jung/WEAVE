@@ -54,4 +54,45 @@ export async function fetchWithRetry(
   throw lastError instanceof Error ? lastError : new Error('fetchWithRetry failed');
 }
 
+export async function fetchJsonWithRetry<T = unknown>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  options?: RetryOptions
+): Promise<T> {
+  const retries = options?.retries ?? 3;
+  const baseDelayMs = options?.baseDelayMs ?? 300;
+
+  let attempt = 0;
+  let lastError: unknown;
+
+  while (attempt <= retries) {
+    try {
+      const response = await fetch(input as RequestInfo, init);
+      if (!response.ok) {
+        if (shouldRetryStatus(response.status) && attempt < retries) {
+          const delay = computeBackoffDelay(attempt, baseDelayMs);
+          await sleep(delay);
+          attempt += 1;
+          continue;
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
+      // 파싱 단계에서의 오류도 재시도 대상
+      const data = (await response.json()) as T;
+      return data;
+    } catch (err) {
+      lastError = err;
+      if (attempt >= retries) {
+        throw err;
+      }
+      const delay = computeBackoffDelay(attempt, baseDelayMs);
+      await sleep(delay);
+      attempt += 1;
+      continue;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('fetchJsonWithRetry failed');
+}
+
 
