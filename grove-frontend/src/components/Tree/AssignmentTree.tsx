@@ -4,6 +4,13 @@ import { Dataset, DatasetRow, InstructionAssignment } from '../../types';
 import { Button } from '../UI/Button';
 import { Download } from 'lucide-react';
 
+export type AssignmentTreeExportController = {
+  exportPng: () => Promise<void>;
+  regenerateCache: () => Promise<void>;
+  getCachedBlob: () => Blob | null;
+  isCacheReady: () => boolean;
+};
+
 type AssignmentTreeProps = {
   assignments: InstructionAssignment[];
   dataset: Dataset;
@@ -14,6 +21,8 @@ type AssignmentTreeProps = {
   exportPadding?: number; // 이미지 외곽 여백(px)
   height?: number | string; // 컨테이너 높이 (기본 700)
   frameless?: boolean; // true일 때 테두리/라운딩 제거
+  controllerRef?: React.Ref<AssignmentTreeExportController>; // 외부에서 캐시/내보내기를 제어하기 위한 ref
+  onCacheReady?: () => void; // 최초 캡처 완료 시 알림
 };
 
 type TreeNode = {
@@ -23,9 +32,12 @@ type TreeNode = {
   __payload?: { assignment?: InstructionAssignment; row?: DatasetRow };
 };
 
-export const AssignmentTree: React.FC<AssignmentTreeProps> = ({ assignments, dataset, onLeafClick, showExportButton = true, filename = 'task-tree.png', exportScale = 3, exportPadding = 32, height = 700, frameless = false }) => {
+export const AssignmentTree: React.FC<AssignmentTreeProps> = ({ assignments, dataset, onLeafClick, showExportButton = true, filename = 'task-tree.png', exportScale = 3, exportPadding = 32, height = 700, frameless = false, controllerRef, onCacheReady }) => {
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = React.useState<{ width: number; height: number }>({ width: 1200, height: 700 });
+  // 최초 진입 시 생성한 PNG Blob 캐시
+  const cachedBlobRef = React.useRef<Blob | null>(null);
+  const isGeneratingRef = React.useRef<boolean>(false);
 
   // 텍스트 길이에 기반한 노드 박스 폭/높이 계산 util (렌더/링크에서 동일 사용)
   const computeNodeBox = React.useCallback((nodeDatum: any) => {
@@ -219,10 +231,10 @@ export const AssignmentTree: React.FC<AssignmentTreeProps> = ({ assignments, dat
     }
   };
 
-  const exportAsPng = async () => {
-    if (!containerRef.current) return;
+  const generatePngBlob = async (): Promise<Blob | null> => {
+    if (!containerRef.current) return null;
     const svgs = Array.from(containerRef.current.querySelectorAll('svg')) as SVGSVGElement[];
-    if (!svgs.length) return;
+    if (!svgs.length) return null;
 
     // Pick the largest SVG in the container (avoids picking button icon svg)
     let svg: SVGSVGElement | null = null;
@@ -235,7 +247,7 @@ export const AssignmentTree: React.FC<AssignmentTreeProps> = ({ assignments, dat
         svg = el;
       }
     });
-    if (!svg) return;
+    if (!svg) return null;
 
     // Clone and inline computed styles so strokes/fills persist when serialized
     const inlineSvgStyles = (source: SVGSVGElement) => {
@@ -354,7 +366,7 @@ export const AssignmentTree: React.FC<AssignmentTreeProps> = ({ assignments, dat
     canvas.width = Math.ceil(outW * exportScale);
     canvas.height = Math.ceil(outH * exportScale);
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) return null;
     ctx.imageSmoothingQuality = 'high';
 
     await new Promise<void>((resolve) => {
@@ -371,18 +383,66 @@ export const AssignmentTree: React.FC<AssignmentTreeProps> = ({ assignments, dat
       img.src = svgDataUrl;
     });
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+    return await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob ?? null), 'image/png');
+    });
   };
+
+  const downloadBlob = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const regenerateCache = async () => {
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
+    try {
+      const blob = await generatePngBlob();
+      if (blob) {
+        cachedBlobRef.current = blob;
+        if (onCacheReady) onCacheReady();
+      }
+    } finally {
+      isGeneratingRef.current = false;
+    }
+  };
+
+  const exportAsPng = async () => {
+    if (cachedBlobRef.current) {
+      downloadBlob(cachedBlobRef.current);
+      return;
+    }
+    await regenerateCache();
+    if (cachedBlobRef.current) downloadBlob(cachedBlobRef.current);
+  };
+
+  // 최초 렌더/데이터 변경 시 한 번만 캡처하여 캐시. 확대/축소로는 갱신하지 않음
+  React.useEffect(() => {
+    cachedBlobRef.current = null;
+    // SVG가 렌더될 시간을 주기 위해 다음 프레임에 실행
+    let raf = 0;
+    raf = requestAnimationFrame(() => {
+      setTimeout(() => {
+        regenerateCache();
+      }, 0);
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments, dataset]);
+
+  // 외부 제어용 controller 제공
+  React.useImperativeHandle(controllerRef, () => ({
+    exportPng: exportAsPng,
+    regenerateCache,
+    getCachedBlob: () => cachedBlobRef.current,
+    isCacheReady: () => cachedBlobRef.current !== null,
+  }), [exportAsPng]);
 
   return (
     <div
