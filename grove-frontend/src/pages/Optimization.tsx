@@ -3,6 +3,7 @@ import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
 import { ProgressIndicator } from '../components/Layout/ProgressIndicator';
 import { useAppStore } from '../store/useAppStore';
+import { fetchWithRetry } from '../utils/fetchWithRetry';
 
 interface BestModelItem {
   model: string;
@@ -63,7 +64,7 @@ export const Optimization: React.FC = () => {
     const fetchCombos = async () => {
       try {
         setLoadingCombos(true);
-        const res = await fetch('/v1/task-mixture/best-models');
+        const res = await fetchWithRetry('/v1/task-mixture/best-models');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json: ApiResponse<BestModelItem[]> = await res.json();
         setCombos(json.data || []);
@@ -124,7 +125,7 @@ export const Optimization: React.FC = () => {
         task: selectedTask,
       });
       const url = `/v1/task-mixture/alpaca/search?${params.toString()}`;
-      const res = await fetch(url);
+      const res = await fetchWithRetry(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: ApiResponse<{ items: SearchItem[]; bestModelDataSizeInfo?: BestModelDataSizeInfo }> = await res.json();
       const items = (json.data && (json.data as any).items) || [];
