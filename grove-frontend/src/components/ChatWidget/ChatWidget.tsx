@@ -69,7 +69,7 @@ export const ChatWidget: React.FC = () => {
       {open && (
         <div className="fixed z-[59] bottom-28 right-6 w-[360px] max-w-[calc(100vw-24px)] h-[560px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50">
-            <div className="font-semibold text-gray-800">대화</div>
+            <div className="font-semibold text-gray-800">Chat</div>
             <div className="text-[10px] text-gray-500 select-none">세션: {sessionIdRef.current.slice(0, 8)}</div>
           </div>
 
