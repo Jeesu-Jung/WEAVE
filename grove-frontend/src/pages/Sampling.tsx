@@ -45,6 +45,7 @@ export const Sampling: React.FC = () => {
   const [isScoring, setIsScoring] = useState<boolean>(false);
   const [scoreProgress, setScoreProgress] = useState<number>(0);
   const [hasScore, setHasScore] = useState<boolean>(false);
+  const [isTooltipActive, setIsTooltipActive] = useState<boolean>(false);
 
   // Scores must be calculated explicitly each session
 
@@ -789,7 +790,7 @@ export const Sampling: React.FC = () => {
       </Card>
 
       {/* Data-centric + Model-centric Sampling (visual only) */}
-      <Card title="Data-centric + Model-centric Sampling" description="Choose how to sample your dataset" className="relative z-[100]">
+      <Card title="Data-centric + Model-centric Sampling" description="Choose how to sample your dataset" className={isTooltipActive ? 'relative z-40' : ''}>
         <div className="space-y-4">
           {/* Target Model selector (visual only) */}
           <div className="flex items-center gap-3">
@@ -809,7 +810,11 @@ export const Sampling: React.FC = () => {
               <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[48px] text-right">{scoreProgress}%</span>
             ) : null}
             {/* Variability Score tooltip */}
-            <div className="relative group ml-1 z-[999]">
+            <div
+              className="relative group ml-1 z-[999]"
+              onMouseEnter={() => setIsTooltipActive(true)}
+              onMouseLeave={() => setIsTooltipActive(false)}
+            >
               <Info className="w-5 h-5 text-gray-500 hover:text-gray-700" />
               <div className="absolute top-full right-0 mt-2 w-[340px] sm:w-[420px] p-3 rounded-lg shadow-xl border border-gray-200 bg-white text-gray-700 text-[16px] leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto z-[9999] transform translate-x-[12px]">
                 {/* arrow */}

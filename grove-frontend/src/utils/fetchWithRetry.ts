@@ -21,7 +21,7 @@ export async function fetchWithRetry(
   init?: RequestInit,
   options?: RetryOptions
 ): Promise<Response> {
-  const retries = options?.retries ?? 3;
+  const retries = options?.retries ?? 5;
   const baseDelayMs = options?.baseDelayMs ?? 300;
 
   let attempt = 0;
@@ -59,7 +59,7 @@ export async function fetchJsonWithRetry<T = unknown>(
   init?: RequestInit,
   options?: RetryOptions
 ): Promise<T> {
-  const retries = options?.retries ?? 3;
+  const retries = options?.retries ?? 5;
   const baseDelayMs = options?.baseDelayMs ?? 300;
 
   let attempt = 0;
