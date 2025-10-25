@@ -1,5 +1,7 @@
 package io.jeesu.grovetaskmixtureservice.application.service
 
+import io.jeesu.grovetaskmixtureservice.application.service.mapper.AlpacaMapper
+import io.jeesu.grovetaskmixtureservice.domain.instruction.BestSearchResult
 import io.jeesu.grovetaskmixtureservice.domain.instruction.Instruction
 import io.jeesu.grovetaskmixtureservice.domain.instruction.InstructionRepository
 import io.jeesu.grovetaskmixtureservice.domain.mixture.BestModel
@@ -12,6 +14,7 @@ class AlpacaService(
     private val seedSentenceService: SeedSentenceService,
     private val bestModelService: BestModelService,
     private val instructionRepository: InstructionRepository,
+    private val mapper: AlpacaMapper
 ) {
     private fun seedTypeCounts(bestModel: BestModel): List<Pair<String, Int>> = listOf(
         "Programming" to bestModel.programming,
@@ -22,10 +25,10 @@ class AlpacaService(
     )
 
     @Cacheable(
-        cacheNames = ["alpacaSearch"],
+        cacheNames = ["alpaca-search"],
         key = "#searchRequest.model + ':' + #searchRequest.dataSize + ':' + #searchRequest.task"
     )
-    fun searchAlpacaInstruction(searchRequest: AlpacaDto.SearchRequest): Pair<List<Instruction>, BestModel> {
+    fun searchAlpacaInstruction(searchRequest: AlpacaDto.SearchRequest): BestSearchResult {
         val bestModel = bestModelService.getTaskMixtureBestModel(
             model = searchRequest.model,
             dataSize = searchRequest.dataSize,
@@ -42,6 +45,9 @@ class AlpacaService(
                 instructionList.addAll(instructionRepository.searchByVector(vector, count))
             }
 
-        return Pair(instructionList.toList(), bestModel)
+        return BestSearchResult(
+            bestInstructions = instructionList.map { mapper.toBestInstruction(it) },
+            bestModel = bestModel
+        )
     }
 }

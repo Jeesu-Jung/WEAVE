@@ -12,3 +12,8 @@ milvus:
   uri: "http://127.0.0.1:19530"
   collection: "weavy_test"
   dimension: 1536
+
+ratelimit:
+  perIp:
+    daily: 50
+  timezone: "Asia/Seoul"
