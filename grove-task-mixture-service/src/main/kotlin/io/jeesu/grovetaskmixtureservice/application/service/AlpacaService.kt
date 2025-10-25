@@ -4,6 +4,7 @@ import io.jeesu.grovetaskmixtureservice.domain.instruction.Instruction
 import io.jeesu.grovetaskmixtureservice.domain.instruction.InstructionRepository
 import io.jeesu.grovetaskmixtureservice.domain.mixture.BestModel
 import io.jeesu.grovetaskmixtureservice.presentation.dto.AlpacaDto
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Service
 
 @Service
@@ -20,6 +21,10 @@ class AlpacaService(
         "History QA" to bestModel.history
     )
 
+    @Cacheable(
+        cacheNames = ["alpacaSearch"],
+        key = "#searchRequest.model + ':' + #searchRequest.dataSize + ':' + #searchRequest.task"
+    )
     fun searchAlpacaInstruction(searchRequest: AlpacaDto.SearchRequest): Pair<List<Instruction>, BestModel> {
         val bestModel = bestModelService.getTaskMixtureBestModel(
             model = searchRequest.model,
