@@ -20,12 +20,62 @@ export const ChatWidget: React.FC = () => {
   const sessionIdRef = React.useRef<string>(getOrCreateSessionId());
   const abortRef = React.useRef<AbortController | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
+  // Resize state
+  const defaultWidth = 360; // px (matches existing w-[360px])
+  const defaultHeight = 560; // px (matches existing h-[560px])
+  const minWidth = Math.round(defaultWidth / 2);
+  const minHeight = Math.round(defaultHeight / 2);
+  const [panelSize, setPanelSize] = React.useState<{ width: number; height: number }>({ width: defaultWidth, height: defaultHeight });
+  const resizingRef = React.useRef<{ mode: 'left' | 'top' | 'topleft' | null; startX: number; startY: number; startWidth: number; startHeight: number } | null>(null);
 
   React.useEffect(() => {
     if (open && listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [open, messages.length]);
+
+  // Attach listeners per drag session (set up in beginResize)
+
+  const beginResize = (mode: 'left' | 'top' | 'topleft') => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizingRef.current = {
+      mode,
+      startX: e.clientX,
+      startY: e.clientY,
+      startWidth: panelSize.width,
+      startHeight: panelSize.height,
+    };
+    const onMove = (evt: MouseEvent) => {
+      const state = resizingRef.current;
+      if (!state || !open) return;
+      evt.preventDefault();
+      const dx = evt.clientX - state.startX;
+      const dy = evt.clientY - state.startY;
+      let newWidth = state.startWidth;
+      let newHeight = state.startHeight;
+      if (state.mode === 'left' || state.mode === 'topleft') {
+        newWidth = state.startWidth - dx;
+      }
+      if (state.mode === 'top' || state.mode === 'topleft') {
+        newHeight = state.startHeight - dy;
+      }
+      newWidth = Math.max(minWidth, Math.min(newWidth, Math.round(window.innerWidth - 24)));
+      newHeight = Math.max(minHeight, Math.min(newHeight, Math.round(window.innerHeight * 0.7)));
+      setPanelSize({ width: newWidth, height: newHeight });
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove, { passive: false });
+    window.addEventListener('mouseup', onUp, { passive: true });
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = mode === 'left' ? 'ew-resize' : mode === 'top' ? 'ns-resize' : 'nwse-resize';
+  };
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -67,7 +117,10 @@ export const ChatWidget: React.FC = () => {
 
       {/* Chat Panel */}
       {open && (
-        <div className="fixed z-[59] bottom-28 right-6 w-[360px] max-w-[calc(100vw-24px)] h-[560px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+        <div
+          className="fixed z-[59] bottom-28 right-6 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+          style={{ width: panelSize.width, height: panelSize.height, maxWidth: 'calc(100vw - 24px)', maxHeight: '70vh' }}
+        >
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50">
             <div className="font-semibold text-gray-800">Chat</div>
             <div className="text-[10px] text-gray-500 select-none">세션: {sessionIdRef.current.slice(0, 8)}</div>
@@ -125,6 +178,25 @@ export const ChatWidget: React.FC = () => {
               전송
             </button>
           </form>
+          {/* Resize handles: left, top, top-left corner */}
+          <div
+            onMouseDown={beginResize('left')}
+            className="absolute left-0 top-0 h-full w-2 cursor-ew-resize"
+            style={{ transform: 'translateX(-1px)' }}
+            aria-hidden
+          />
+          <div
+            onMouseDown={beginResize('top')}
+            className="absolute left-0 top-0 w-full h-2 cursor-ns-resize"
+            style={{ transform: 'translateY(-1px)' }}
+            aria-hidden
+          />
+          <div
+            onMouseDown={beginResize('topleft')}
+            className="absolute left-0 top-0 w-3 h-3 cursor-nwse-resize"
+            style={{ transform: 'translate(-2px, -2px)' }}
+            aria-hidden
+          />
         </div>
       )}
     </>
