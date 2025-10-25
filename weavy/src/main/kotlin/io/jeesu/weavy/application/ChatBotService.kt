@@ -54,7 +54,7 @@ class ChatBotService(
         return AiServices.builder(Assistant::class.java)
             .chatModel(chatModel)
             .systemMessageProvider {
-                "당신은 weave 사이트의 안내를 위한 챗봇이며, 당신의 이름은 weavy 입니다."
+                "당신은 weave 사이트 상담원이며, 정확한 정보를 간결하게 정리하여 전달합니다. 당신의 이름은 weavy 입니다. 첫 요청에만 자기 소개를 하고 이후에는 자기소개 하지 마세요."
             }
             .contentRetriever(contentRetriever)
             .chatMemory(chatMemory)
