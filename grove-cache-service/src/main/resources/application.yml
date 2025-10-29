@@ -7,3 +7,9 @@ spring:
     redis:
       host: localhost
       port: 6379
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 10000
+        readTimeout: 60000
